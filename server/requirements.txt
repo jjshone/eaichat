@@ -1,0 +1,13 @@
+fastapi>=0.95
+uvicorn[standard]>=0.22
+sqlalchemy>=2.0
+alembic>=1.11
+python-dotenv>=1.0
+PyMySQL>=1.0
+
+# Required for PyMySQL when MySQL uses caching_sha2_password
+cryptography>=41.0
+
+# NOTE: heavy ML deps (sentence-transformers, torch, qdrant-client, temporalio, langfuse-sdk)
+# should be added to a separate `requirements-ml.txt` used when building worker images
+# or in CI where resources are available.
