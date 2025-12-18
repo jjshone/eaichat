@@ -29,13 +29,13 @@ class QdrantVectorClient(BaseVectorClient):
         self.host = os.getenv("QDRANT_HOST", "localhost")
         self.port = int(os.getenv("QDRANT_PORT", "6333"))
         self.api_key = os.getenv("QDRANT_API_KEY")
+        self.url = f"http://{self.host}:{self.port}"
         
         # Sync client for simple operations
         self._sync_client = QdrantClient(
-            host=self.host,
-            port=self.port,
+            url=self.url,
             api_key=self.api_key,
-            prefer_grpc=False,  # Disable SSL/gRPC for local dev
+            prefer_grpc=False,
         )
         
         # Async client for async operations
@@ -44,10 +44,9 @@ class QdrantVectorClient(BaseVectorClient):
     async def _get_async_client(self) -> AsyncQdrantClient:
         if self._async_client is None:
             self._async_client = AsyncQdrantClient(
-                host=self.host,
-                port=self.port,
+                url=self.url,
                 api_key=self.api_key,
-                prefer_grpc=False,  # Disable SSL/gRPC for local dev
+                prefer_grpc=False,
             )
         return self._async_client
     
