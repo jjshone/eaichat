@@ -1,0 +1,61 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          docker compose version
+
+      - name: Copy environment
+        run: cp .env.example .env
+
+      - name: Start services
+        run: |
+          docker compose up -d mysql redis qdrant postgres
+          sleep 20  # Wait for databases to initialize
+
+      - name: Build and start application
+        run: |
+          docker compose up -d api worker web
+          sleep 30  # Wait for services to start
+
+      - name: Check service health
+        run: |
+          echo "Checking API health..."
+          curl -f http://localhost:8000/health || exit 1
+          echo "Checking Qdrant..."
+          curl -f http://localhost:6333 || exit 1
+          echo "All services healthy!"
+
+      - name: Run API tests
+        run: |
+          # Test health endpoint
+          response=$(curl -s http://localhost:8000/health)
+          echo "Health response: $response"
+          
+          # Test ping endpoint
+          ping=$(curl -s http://localhost:8000/ping)
+          echo "Ping response: $ping"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose logs --tail=100
+
+      - name: Stop services
+        if: always()
+        run: |
+          docker compose down -v

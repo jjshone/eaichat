@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   mysql:
     image: mysql:8.0
@@ -11,20 +10,37 @@ services:
       - mysql-data:/var/lib/mysql
     ports:
       - "3306:3306"
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    environment:
-      PMA_HOST: mysql
-      PMA_USER: eaichat
-      PMA_PASSWORD: secret
-    ports:
-      - "8080:80"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: temporal
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -32,58 +48,116 @@ services:
       - "6333:6333"
     volumes:
       - qdrant-storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   temporal:
-    image: temporalio/server:1.22.0
+    image: temporalio/auto-setup:1.22.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PWD: postgres
+      POSTGRES_SEEDS: postgres
     ports:
       - "7233:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "workflow", "list", "--address", "localhost:7233"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
-  langfuse:
-    image: langfuse/langfuse:latest
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.22.0
+    depends_on:
+      temporal:
+        condition: service_started
     environment:
-      - LF_API_KEY=changeme
-      - DATABASE_URL=postgresql://langfuse:changeme@postgres:5432/langfuse
-    ports:
-      - "8081:8081"
-
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: langfuse
-      POSTGRES_PASSWORD: changeme
-      POSTGRES_DB: langfuse
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      TEMPORAL_CLI_ADDRESS: temporal:7233
+    stdin_open: true
+    tty: true
 
   temporal-ui:
     image: temporalio/ui:latest
-    ports:
-      - "8088:8088"
     depends_on:
-      - temporal
+      temporal:
+        condition: service_started
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8088:8080"
+
+  # Langfuse v2 (v3 requires ClickHouse)
+  langfuse:
+    image: langfuse/langfuse:2.90.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/langfuse?schema=langfuse
+      NEXTAUTH_URL: http://localhost:8081
+      NEXTAUTH_SECRET: supersecret
+      SALT: randomsalt
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "8081:3000"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: eaichat
+      PMA_PASSWORD: secret
+    ports:
+      - "8080:80"
 
   api:
     build: ./server
     env_file: .env.example
     depends_on:
-      - mysql
-      - redis
-      - qdrant
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   worker:
     build: ./worker
     env_file: .env.example
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   web:
     build: ./web
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --spider http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 volumes:
   mysql-data:
-  qdrant-storage:
   postgres-data:
+  qdrant-storage:

@@ -1,0 +1,22 @@
+# Root .dockerignore
+
+.git
+.gitignore
+.github
+*.md
+LICENSE
+.env
+.env.*
+!.env.example
+docker-compose*.yml
+docs/
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/.next
+**/dist
+**/*.log

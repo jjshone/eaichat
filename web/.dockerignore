@@ -1,0 +1,12 @@
+# Web .dockerignore
+node_modules
+.next
+.git
+.gitignore
+*.md
+Makefile
+.env
+.env.*
+*.log
+coverage/
+.vercel

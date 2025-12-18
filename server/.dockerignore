@@ -1,0 +1,21 @@
+# Server .dockerignore
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov/
+.tox
+*.egg-info/
+dist/
+build/
+.git
+.gitignore
+*.md
+Makefile
+tests/
+.env
+.env.*
+*.log
