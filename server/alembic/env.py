@@ -16,8 +16,7 @@ config = context.config
 # Interpret the config file for Python logging.
 fileConfig(config.config_file_name)
 
-from app.db import Base, DATABASE_URL
-from app import models
+from app.db import Base, DATABASE_URL  # noqa: E402
 
 target_metadata = Base.metadata
 

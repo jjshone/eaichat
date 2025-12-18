@@ -1,4 +1,4 @@
-                                                                                                                                                                                                                                                                                                    """
+"""
 Temporal Worker for eaichat
 ===========================
 

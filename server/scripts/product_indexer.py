@@ -18,11 +18,8 @@ Usage:
 import argparse
 import json
 import os
-import sys
-import time
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import quote_plus
 
 import requests
 from dotenv import load_dotenv

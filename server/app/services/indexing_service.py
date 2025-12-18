@@ -17,7 +17,7 @@ from typing import Optional
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.connectors import get_connector, ProductData, PlatformType, ConnectorConfig
+from app.connectors import get_connector, ProductData, ConnectorConfig
 from app.services.embedding_service import EmbeddingService
 from app.vectordb import (
     get_vector_client,

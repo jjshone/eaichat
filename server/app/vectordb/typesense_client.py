@@ -40,7 +40,7 @@ class TypesenseVectorClient(BaseVectorClient):
         for name, config in schema.vectors.items():
             fields.append({
                 "name": name,
-                "type": f"float[]",
+                "type": "float[]",
                 "num_dim": config["size"],
                 "embed": {
                     "from": [],  # Will be provided at index time

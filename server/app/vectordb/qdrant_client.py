@@ -16,9 +16,7 @@ from qdrant_client.models import (
     FieldCondition,
     MatchValue,
     Range,
-    SearchRequest,
     NamedVector,
-    ScoredPoint,
 )
 
 from . import BaseVectorClient, VectorPoint, SearchResult, CollectionSchema
