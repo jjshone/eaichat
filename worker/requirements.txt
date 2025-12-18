@@ -1,5 +1,2 @@
-python-dotenv>=1.0
-requests>=2.0
-# Heavy ML and SDK dependencies (temporalio, qdrant-client, sentence-transformers, torch)
-# are intentionally omitted from this lightweight worker image to allow local builds.
-# Add them in `requirements-ml.txt` for specialized worker images or CI where resources permit.
+temporalio>=1.5.0
+python-dotenv>=1.0.0

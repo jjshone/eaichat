@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Add server to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'server'))
+# Add server app to Python path - worker container has server code at /app/server
+sys.path.insert(0, '/app/server')
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost")
 TEMPORAL_PORT = int(os.getenv("TEMPORAL_PORT", "7233"))
@@ -28,7 +28,7 @@ async def run_worker():
         from temporalio.client import Client
         from temporalio.worker import Worker
 
-        # Import workflows and activities
+        # Import workflows and activities from server app
         from app.workflows.workflows import (
             ProductSyncWorkflow,
             MultiPlatformSyncWorkflow,
@@ -43,12 +43,18 @@ async def run_worker():
         )
 
         print(f"[INFO] Connecting to Temporal at {TEMPORAL_HOST}:{TEMPORAL_PORT}")
+        print(f"[INFO] Namespace: {TEMPORAL_NAMESPACE}")
+        print(f"[INFO] Task Queue: {TASK_QUEUE}")
+        
         client = await Client.connect(
             f"{TEMPORAL_HOST}:{TEMPORAL_PORT}",
             namespace=TEMPORAL_NAMESPACE
         )
+        
+        print("[SUCCESS] Connected to Temporal server")
+        print(f"[INFO] Registering workflows: ProductSyncWorkflow, MultiPlatformSyncWorkflow, PlatformRefreshWorkflow")
+        print(f"[INFO] Registering activities: fetch_and_index_from_platform, ensure_vector_collection, etc.")
 
-        print(f"[INFO] Starting worker for task queue: {TASK_QUEUE}")
         worker = Worker(
             client,
             task_queue=TASK_QUEUE,
@@ -66,32 +72,42 @@ async def run_worker():
             ],
         )
 
+        print("[SUCCESS] Worker initialized")
+        print(f"[INFO] Worker polling task queue: {TASK_QUEUE}")
         print("[INFO] Worker started, waiting for tasks...")
         await worker.run()
 
     except ImportError as e:
-        print(f"[WARN] Missing dependencies for Temporal worker: {e}")
-        print("[INFO] Running in fallback mode (placeholder)")
-        await fallback_worker()
-    except Exception as e:
-        print(f"[ERROR] Worker failed: {e}")
+        print(f"[ERROR] Import error: {e}")
+        print(f"[ERROR] sys.path: {sys.path}")
         import traceback
         traceback.print_exc()
+        print("[INFO] Falling back to placeholder worker")
+        await fallback_worker()
+    except Exception as e:
+        print(f"[ERROR] Worker failed to start: {e}")
+        import traceback
+        traceback.print_exc()
+        print("[INFO] Falling back to placeholder worker")
         await fallback_worker()
 
 
 async def fallback_worker():
     """Fallback worker when Temporal dependencies are not available."""
-    print("[INFO] Running fallback worker (no Temporal)")
+    print("[WARN] Running fallback worker (no Temporal)")
     while True:
         await asyncio.sleep(30)
-        print("[HEARTBEAT] Worker alive")
+        print("[HEARTBEAT] Fallback worker alive but not processing tasks")
 
 
 def main():
-    print("=" * 50)
+    print("=" * 60)
     print("eaichat Temporal Worker")
-    print("=" * 50)
+    print("=" * 60)
+    print(f"Python version: {sys.version}")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"sys.path: {sys.path[:3]}...")  # Show first 3 paths
+    print("=" * 60)
     asyncio.run(run_worker())
 
 

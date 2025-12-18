@@ -141,10 +141,25 @@ services:
 
   worker:
     build: ./worker
-    env_file: .env.example
+    volumes:
+      - ./server:/app/server:ro
     depends_on:
       api:
         condition: service_healthy
+    environment:
+      TEMPORAL_HOST: temporal
+      TEMPORAL_PORT: 7233
+      TEMPORAL_NAMESPACE: default
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: eaichat
+      DB_PASSWORD: secret
+      DB_NAME: eaichat
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: http://langfuse:3000
 
   web:
     build: ./web
