@@ -6,7 +6,6 @@ Activities are the actual work units executed by Temporal workers.
 """
 
 from temporalio import activity
-from typing import Any
 
 # Import from product indexer
 import sys

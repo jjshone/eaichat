@@ -1,7 +1,6 @@
 """Init DB helper: creates tables using models.Base.metadata.create_all
 This script runs inside the API container and will create tables against the configured MYSQL DB.
 """
-import os
 import logging
 from app.db import engine, Base
 

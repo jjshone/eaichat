@@ -2,36 +2,42 @@
     "changelog-sections": [
         {
             "type": "feat",
-            "section": "Features"
+            "section": "✨ Features"
         },
         {
             "type": "fix",
-            "section": "Bug Fixes"
+            "section": "🐛 Bug Fixes"
         },
         {
             "type": "perf",
-            "section": "Performance"
+            "section": "⚡ Performance"
         },
         {
             "type": "refactor",
-            "section": "Code Refactoring"
+            "section": "♻️ Refactoring"
         },
         {
             "type": "docs",
-            "section": "Documentation"
+            "section": "📚 Documentation"
         },
         {
             "type": "chore",
-            "section": "Miscellaneous"
+            "section": "🔧 Miscellaneous"
         },
         {
             "type": "ci",
-            "section": "CI/CD"
+            "section": "🔄 CI/CD"
+        },
+        {
+            "type": "test",
+            "section": "🧪 Tests"
         }
     ],
     "packages": {
         ".": {
-            "component": "eaichat"
+            "component": "eaichat",
+            "changelog-path": "CHANGELOG.md"
         }
-    }
+    },
+    "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
 }

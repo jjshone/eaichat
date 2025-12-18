@@ -1,15 +1,51 @@
-fastapi>=0.95
-uvicorn[standard]>=0.22
-sqlalchemy>=2.0
-alembic>=1.11
-python-dotenv>=1.0
-PyMySQL>=1.0
-requests>=2.31
-qdrant-client==1.16.2
+# Core API Dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
 
-# Required for PyMySQL when MySQL uses caching_sha2_password
-cryptography>=41.0
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+pymysql>=1.1.0
+cryptography>=41.0.0
+asyncmy>=0.2.9
 
-# NOTE: heavy ML deps (sentence-transformers, torch, qdrant-client, temporalio, langfuse-sdk)
-# should be added to a separate `requirements-ml.txt` used when building worker images
-# or in CI where resources are available.
+# HTTP Client
+httpx>=0.25.0
+
+# Redis
+redis>=5.0.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+argon2-cffi>=23.1.0
+
+# Vector Database Clients
+qdrant-client>=1.7.0
+typesense>=0.19.0
+
+# ML / Embeddings
+sentence-transformers>=2.2.0
+torch>=2.0.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Temporal
+temporalio>=1.4.0
+
+# Telemetry
+langfuse>=2.0.0
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+
+# LLM Providers
+openai>=1.3.0
+anthropic>=0.7.0
+google-generativeai>=0.3.0
+
+# Utilities
+python-multipart>=0.0.6
+aiofiles>=23.2.0

@@ -3,7 +3,6 @@ This is a starting point: it reads products from the DB and upserts vectors.
 Run with: python scripts/reindex_qdrant.py --dry-run
 """
 import argparse
-import sys
 
 
 def parse_args():
