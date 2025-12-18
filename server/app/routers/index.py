@@ -5,10 +5,11 @@ Indexing API Router
 Endpoints for product indexing and search.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
+import os
 
 router = APIRouter(prefix="/api/index", tags=["indexing"])
 
@@ -54,36 +55,63 @@ class SearchResult(BaseModel):
 
 
 @router.post("/sync", response_model=IndexResponse)
-async def sync_products(request: IndexRequest, background_tasks: BackgroundTasks):
+async def sync_products(request: IndexRequest):
     """
-    Sync products from a platform to vector database.
+    Sync products from a platform to vector database using Temporal workflow.
     
-    This runs as a background task. Check /api/index/stats for progress.
+    This triggers a durable workflow that handles batching, retries, and progress tracking.
     """
     try:
+        from temporalio.client import Client
+        import uuid
+        
+        # Connect to Temporal
+        temporal_host = os.getenv("TEMPORAL_HOST", "localhost")
+        temporal_port = int(os.getenv("TEMPORAL_PORT", "7233"))
+        client = await Client.connect(f"{temporal_host}:{temporal_port}")
+        
+        # Generate workflow ID
+        workflow_id = f"product-sync-{request.platform.value}-{uuid.uuid4().hex[:8]}"
+        
+        # Start workflow
+        handle = await client.start_workflow(
+            "ProductSyncWorkflow",
+            args=[request.platform.value, request.batch_size],
+            id=workflow_id,
+            task_queue="eaichat-tasks",
+        )
+        
+        return IndexResponse(
+            status="started",
+            message=f"Indexing from {request.platform.value} started via Temporal",
+            job_id=workflow_id,
+        )
+    except Exception as e:
+        # Fallback to background task if Temporal unavailable
+        print(f"[WARN] Temporal unavailable, using background task: {e}")
         from app.services.indexing_service import get_indexing_service
+        from fastapi import BackgroundTasks
         
         service = get_indexing_service()
         
         async def run_indexing():
             try:
-                stats = await service.index_from_platform(
+                await service.index_from_platform(
                     platform=request.platform.value,
                     batch_size=request.batch_size,
-                    include_images=request.include_images,
                 )
-                print(f"[INFO] Indexing complete: {stats.total_indexed} products indexed")
-            except Exception as e:
-                print(f"[ERROR] Indexing failed: {e}")
+            except Exception as err:
+                print(f"[ERROR] Indexing failed: {err}")
         
-        background_tasks.add_task(run_indexing)
+        # Note: Can't use BackgroundTasks without it being injected
+        # Execute directly for now
+        import asyncio
+        asyncio.create_task(run_indexing())
         
         return IndexResponse(
             status="started",
-            message=f"Indexing from {request.platform.value} started in background"
+            message=f"Indexing from {request.platform.value} started (fallback mode)"
         )
-    except ImportError as e:
-        raise HTTPException(status_code=503, detail=f"Service unavailable: {e}")
 
 
 @router.post("/search", response_model=list[SearchResult])

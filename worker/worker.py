@@ -8,9 +8,13 @@ Run with: python worker.py
 
 import asyncio
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Add server to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'server'))
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost")
 TEMPORAL_PORT = int(os.getenv("TEMPORAL_PORT", "7233"))
@@ -25,34 +29,40 @@ async def run_worker():
         from temporalio.worker import Worker
 
         # Import workflows and activities
-        import sys
-        sys.path.insert(0, os.path.dirname(__file__))
-        
-        from server.app.workflows import (
+        from app.workflows.workflows import (
             ProductSyncWorkflow,
-            ReindexWorkflow,
-            ChatWorkflow,
-            fetch_and_index_products,
-            reindex_products_batch,
-            get_reindex_checkpoint,
-            update_reindex_checkpoint,
-            send_langfuse_event,
+            MultiPlatformSyncWorkflow,
+            PlatformRefreshWorkflow,
+        )
+        from app.workflows.activities import (
+            fetch_and_index_from_platform,
+            ensure_vector_collection,
+            get_collection_stats,
+            delete_platform_products,
+            send_langfuse_trace,
         )
 
         print(f"[INFO] Connecting to Temporal at {TEMPORAL_HOST}:{TEMPORAL_PORT}")
-        client = await Client.connect(f"{TEMPORAL_HOST}:{TEMPORAL_PORT}", namespace=TEMPORAL_NAMESPACE)
+        client = await Client.connect(
+            f"{TEMPORAL_HOST}:{TEMPORAL_PORT}",
+            namespace=TEMPORAL_NAMESPACE
+        )
 
         print(f"[INFO] Starting worker for task queue: {TASK_QUEUE}")
         worker = Worker(
             client,
             task_queue=TASK_QUEUE,
-            workflows=[ProductSyncWorkflow, ReindexWorkflow, ChatWorkflow],
+            workflows=[
+                ProductSyncWorkflow,
+                MultiPlatformSyncWorkflow,
+                PlatformRefreshWorkflow,
+            ],
             activities=[
-                fetch_and_index_products,
-                reindex_products_batch,
-                get_reindex_checkpoint,
-                update_reindex_checkpoint,
-                send_langfuse_event,
+                fetch_and_index_from_platform,
+                ensure_vector_collection,
+                get_collection_stats,
+                delete_platform_products,
+                send_langfuse_trace,
             ],
         )
 
@@ -65,6 +75,8 @@ async def run_worker():
         await fallback_worker()
     except Exception as e:
         print(f"[ERROR] Worker failed: {e}")
+        import traceback
+        traceback.print_exc()
         await fallback_worker()
 
 
