@@ -73,6 +73,16 @@ export interface ChatResponse {
     tokens_used?: number;
 }
 
+export interface LLMProvider {
+    name: string;
+    status: string;
+    model?: string;
+}
+
+export interface ProvidersResponse {
+    providers: LLMProvider[];
+}
+
 /**
  * eaichat API Client
  */
@@ -94,7 +104,7 @@ export class EAIChatAPI {
     /**
      * Create collection
      */
-    async createCollection(recreate: boolean = false): Promise<any> {
+    async createCollection(recreate: boolean = false): Promise<{ status: string; collection?: string; message?: string }> {
         const response = await fetch(`${this.baseUrl}/api/index/create-collection`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -178,7 +188,7 @@ export class EAIChatAPI {
     /**
      * Get available LLM providers
      */
-    async getProviders(): Promise<any> {
+    async getProviders(): Promise<ProvidersResponse> {
         const response = await fetch(`${this.baseUrl}/api/chat/providers`);
         return response.json();
     }
