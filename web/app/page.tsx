@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { MessageSquare, Database, Zap, Search, ArrowRight, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { MessageSquare, Database, Zap, Search, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { ProductSearch } from '@/components/ProductSearch'
+import { SyncManager } from '@/components/SyncManager'
 
 interface ServiceStatus {
     name: string
@@ -20,7 +21,7 @@ export default function HomePage() {
         { name: 'Temporal UI', status: 'loading', url: 'http://localhost:8088' },
         { name: 'Langfuse', status: 'loading', url: 'http://localhost:8081' },
     ])
-    const [chatInput, setChatInput] = useState('')
+    const [activeTab, setActiveTab] = useState<'search' | 'sync'>('search')
 
     useEffect(() => {
         const checkService = async (name: string, url: string): Promise<ServiceStatus> => {
@@ -56,22 +57,22 @@ export default function HomePage() {
         {
             icon: MessageSquare,
             title: 'AI-Powered Chat',
-            description: 'Multi-LLM support with OpenAI, Anthropic, and Gemini. Intelligent product recommendations.',
+            description: 'Multi-LLM support with OpenAI, Anthropic, and Gemini.',
         },
         {
             icon: Database,
             title: 'Vector Search',
-            description: 'Qdrant-powered semantic search with real-time product indexing and RAG retrieval.',
+            description: 'Qdrant-powered semantic search with real-time indexing.',
         },
         {
             icon: Zap,
             title: 'Workflow Automation',
-            description: 'Temporal-based orchestration for background tasks, reindexing, and data sync.',
+            description: 'Temporal-based orchestration for background tasks.',
         },
         {
             icon: Search,
             title: 'Smart Discovery',
-            description: 'Natural language queries with filtering, intent detection, and personalized results.',
+            description: 'Natural language queries with filtering and intent detection.',
         },
     ]
 
@@ -90,19 +91,6 @@ export default function HomePage() {
                     AI-powered e-commerce platform with vector search, multi-LLM orchestration,
                     and real-time recommendations.
                 </p>
-
-                {/* Quick Chat Input */}
-                <div className="flex max-w-md mx-auto gap-2">
-                    <Input
-                        placeholder="Try: Find me a blue jacket under $50..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        className="flex-1"
-                    />
-                    <Button>
-                        <ArrowRight className="w-4 h-4" />
-                    </Button>
-                </div>
             </div>
 
             {/* Features Grid */}
@@ -152,6 +140,31 @@ export default function HomePage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Main Features - Search & Sync */}
+            <div className="mb-12">
+                <div className="flex gap-2 mb-6">
+                    <Button
+                        variant={activeTab === 'search' ? 'default' : 'outline'}
+                        onClick={() => setActiveTab('search')}
+                        className="flex-1"
+                    >
+                        <Search className="w-4 h-4 mr-2" />
+                        Product Search
+                    </Button>
+                    <Button
+                        variant={activeTab === 'sync' ? 'default' : 'outline'}
+                        onClick={() => setActiveTab('sync')}
+                        className="flex-1"
+                    >
+                        <Database className="w-4 h-4 mr-2" />
+                        Sync Manager
+                    </Button>
+                </div>
+
+                {activeTab === 'search' && <ProductSearch />}
+                {activeTab === 'sync' && <SyncManager />}
+            </div>
 
             {/* Quick Links */}
             <div className="grid md:grid-cols-3 gap-6">
