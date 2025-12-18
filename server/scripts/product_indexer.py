@@ -94,8 +94,11 @@ def fetch_products_from_fake_store() -> list[Product]:
         return []
 
 
-def download_product_image(image_url: str, save_dir: str = "/tmp/product_images") -> Optional[str]:
+def download_product_image(image_url: str, save_dir: str = "") -> Optional[str]:
     """Download product image and return local path."""
+    import tempfile
+    if not save_dir:
+        save_dir = os.path.join(tempfile.gettempdir(), "product_images")
     os.makedirs(save_dir, exist_ok=True)
     filename = os.path.basename(image_url.split("?")[0])
     filepath = os.path.join(save_dir, filename)
