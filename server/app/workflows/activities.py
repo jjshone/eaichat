@@ -1,83 +1,134 @@
 """
-Temporal Activities for eaichat workflows
-=========================================
+Temporal Activities using New Architecture
+==========================================
 
-Activities are the actual work units executed by Temporal workers.
+Activities for product indexing using IndexingService and platform connectors.
 """
 
 from temporalio import activity
-
-# Import from product indexer
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
-from scripts.product_indexer import (
-    fetch_and_index_from_fake_store,
-    get_products_from_mysql,
-    upsert_product_vectors,
-    get_reindex_checkpoint as _get_checkpoint,
-    update_reindex_checkpoint as _update_checkpoint,
-)
+from typing import Optional
+import asyncio
 
 
 @activity.defn
-async def fetch_and_index_products(source: str) -> int:
-    """Activity to fetch products from external source and index them."""
-    activity.logger.info(f"Fetching products from {source}")
+async def fetch_and_index_from_platform(platform: str, batch_size: int = 50) -> dict:
+    """
+    Fetch products from platform connector and index to vector DB.
     
-    if source == "fakestore":
-        success = fetch_and_index_from_fake_store()
-        return 1 if success else 0
+    Args:
+        platform: Platform name (fakestore, magento, odoo)
+        batch_size: Batch size for indexing
+        
+    Returns:
+        dict with status, indexed count, errors
+    """
+    activity.logger.info(f"Fetching and indexing from {platform}")
     
-    return 0
-
-
-@activity.defn
-async def reindex_products_batch(params: dict) -> dict:
-    """Activity to reindex a batch of products."""
-    batch_size = params.get("batch_size", 32)
-    offset = params.get("offset", 0)
-    
-    activity.logger.info(f"Reindexing batch: offset={offset}, size={batch_size}")
-    
-    products = get_products_from_mysql(limit=batch_size, offset=offset)
-    if not products:
-        return {"count": 0, "last_id": offset}
-    
-    indexed = upsert_product_vectors(products)
-    last_id = max(p.id for p in products) if products else offset
-    
-    return {"count": indexed, "last_id": last_id}
-
-
-@activity.defn
-async def get_reindex_checkpoint(collection: str) -> int:
-    """Activity to get current reindex checkpoint."""
-    return _get_checkpoint(collection)
-
-
-@activity.defn
-async def update_reindex_checkpoint(params: dict) -> bool:
-    """Activity to update reindex checkpoint."""
-    collection = params.get("collection", "products")
-    last_id = params.get("last_id", 0)
-    _update_checkpoint(collection, last_id)
-    return True
-
-
-@activity.defn
-async def send_langfuse_event(event_data: dict) -> bool:
-    """Activity to send telemetry event to Langfuse."""
     try:
+        from app.services.indexing_service import get_indexing_service
+        
+        service = get_indexing_service()
+        
+        total_indexed = 0
+        errors = []
+        
+        def progress_callback(current: int, total: int):
+            activity.logger.info(f"Progress: {current}/{total}")
+            activity.heartbeat(f"{current}/{total}")
+        
+        total_indexed = await service.index_from_platform(
+            platform=platform,
+            batch_size=batch_size,
+            progress_callback=progress_callback,
+        )
+        
+        return {
+            "status": "success",
+            "platform": platform,
+            "indexed": total_indexed,
+            "errors": errors,
+        }
+    
+    except Exception as e:
+        activity.logger.error(f"Indexing failed: {e}")
+        return {
+            "status": "error",
+            "platform": platform,
+            "indexed": 0,
+            "errors": [str(e)],
+        }
+
+
+@activity.defn
+async def ensure_vector_collection() -> dict:
+    """Ensure vector collection exists with proper schema."""
+    activity.logger.info("Ensuring vector collection exists")
+    
+    try:
+        from app.services.indexing_service import get_indexing_service
+        
+        service = get_indexing_service()
+        await service.ensure_collection()
+        
+        return {"status": "success", "collection": "products"}
+    except Exception as e:
+        activity.logger.error(f"Collection check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@activity.defn
+async def get_collection_stats() -> dict:
+    """Get vector collection statistics."""
+    try:
+        from app.services.indexing_service import get_indexing_service
+        
+        service = get_indexing_service()
+        stats = await service.get_collection_stats()
+        
+        return {"status": "success", "stats": stats}
+    except Exception as e:
+        activity.logger.error(f"Stats retrieval failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@activity.defn
+async def delete_platform_products(platform: str) -> dict:
+    """Delete all products for a specific platform."""
+    activity.logger.info(f"Deleting products from {platform}")
+    
+    try:
+        from app.services.indexing_service import get_indexing_service
+        
+        service = get_indexing_service()
+        deleted = await service.delete_by_platform(platform)
+        
+        return {"status": "success", "platform": platform, "deleted": deleted}
+    except Exception as e:
+        activity.logger.error(f"Deletion failed: {e}")
+        return {"status": "error", "platform": platform, "error": str(e)}
+
+
+@activity.defn
+async def send_langfuse_trace(trace_data: dict) -> bool:
+    """Send trace to Langfuse for observability."""
+    try:
+        import os
         from langfuse import Langfuse
+        
+        # Check if Langfuse is configured
+        if not os.getenv("LANGFUSE_PUBLIC_KEY"):
+            activity.logger.debug("Langfuse not configured, skipping trace")
+            return False
         
         langfuse = Langfuse()
         langfuse.trace(
-            name=event_data.get("event", "unknown"),
-            metadata=event_data,
+            name=trace_data.get("name", "temporal_activity"),
+            metadata=trace_data.get("metadata", {}),
+            tags=trace_data.get("tags", []),
         )
+        langfuse.flush()
+        
         return True
     except Exception as e:
-        activity.logger.warning(f"Failed to send Langfuse event: {e}")
+        activity.logger.warning(f"Langfuse trace failed: {e}")
         return False

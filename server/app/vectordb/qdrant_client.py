@@ -35,6 +35,7 @@ class QdrantVectorClient(BaseVectorClient):
             host=self.host,
             port=self.port,
             api_key=self.api_key,
+            prefer_grpc=False,  # Disable SSL/gRPC for local dev
         )
         
         # Async client for async operations
@@ -46,6 +47,7 @@ class QdrantVectorClient(BaseVectorClient):
                 host=self.host,
                 port=self.port,
                 api_key=self.api_key,
+                prefer_grpc=False,  # Disable SSL/gRPC for local dev
             )
         return self._async_client
     
@@ -195,9 +197,10 @@ class QdrantVectorClient(BaseVectorClient):
         client = await self._get_async_client()
         
         try:
-            results = await client.search(
+            results = await client.query_points(
                 collection_name=collection,
-                query_vector=NamedVector(name=vector_name, vector=vector),
+                query=vector,
+                using=vector_name,
                 limit=limit,
                 query_filter=self._build_filter(filters),
                 with_payload=with_payload,
@@ -209,7 +212,7 @@ class QdrantVectorClient(BaseVectorClient):
                     score=r.score,
                     payload=r.payload or {},
                 )
-                for r in results
+                for r in results.points
             ]
         except Exception as e:
             print(f"[ERROR] Search failed: {e}")
@@ -234,9 +237,10 @@ class QdrantVectorClient(BaseVectorClient):
         try:
             # For true hybrid search, use Qdrant Query API (v1.10+)
             # This is a simplified version using payload text search
-            results = await client.search(
+            results = await client.query_points(
                 collection_name=collection,
-                query_vector=NamedVector(name=vector_name, vector=vector),
+                query=vector,
+                using=vector_name,
                 limit=limit * 2,  # Get more results for reranking
                 with_payload=True,
             )
@@ -245,7 +249,7 @@ class QdrantVectorClient(BaseVectorClient):
             query_terms = set(query_text.lower().split())
             boosted_results = []
             
-            for r in results:
+            for r in results.points:
                 payload_text = " ".join(
                     str(v).lower() for v in (r.payload or {}).values()
                     if isinstance(v, str)
