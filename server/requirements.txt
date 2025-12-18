@@ -4,6 +4,8 @@ sqlalchemy>=2.0
 alembic>=1.11
 python-dotenv>=1.0
 PyMySQL>=1.0
+requests>=2.31
+qdrant-client==1.16.2
 
 # Required for PyMySQL when MySQL uses caching_sha2_password
 cryptography>=41.0
