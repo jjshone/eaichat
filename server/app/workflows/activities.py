@@ -24,39 +24,54 @@ async def fetch_and_index_from_platform(params: dict) -> dict:
     platform = params.get("platform", "fakestore")
     batch_size = params.get("batch_size", 50)
     
-    activity.logger.info(f"Fetching and indexing from {platform}, batch_size={batch_size}")
+    activity.logger.info(f"[BATCH START] Fetching from {platform}, batch_size={batch_size}")
     
     try:
         from app.services.indexing_service import get_indexing_service
         
         service = get_indexing_service()
         
-        # Send heartbeat periodically
-        activity.heartbeat(f"Starting sync from {platform}")
+        # Callback to track batch progress
+        batch_count = 0
+        def log_progress(stats):
+            nonlocal batch_count
+            batch_count += 1
+            activity.logger.info(
+                f"[BATCH {batch_count}] Indexed {stats.total_indexed} products "
+                f"(fetched: {stats.total_fetched}, failed: {stats.total_failed})"
+            )
+            activity.heartbeat(f"Batch {batch_count}: {stats.total_indexed} products")
         
-        # Index from platform (note: IndexingService doesn't have progress_callback)
+        # Index from platform with progress callback
         stats = await service.index_from_platform(
             platform=platform,
             batch_size=batch_size,
+            on_progress=log_progress,
         )
         
-        activity.logger.info(f"Indexed {stats.total_indexed} products from {platform}")
+        activity.logger.info(
+            f"[BATCH COMPLETE] Total indexed: {stats.total_indexed} products "
+            f"in {batch_count} batches ({stats.duration_seconds:.1f}s)"
+        )
         
         return {
             "status": "success",
             "platform": platform,
             "indexed": stats.total_indexed,
+            "batches": batch_count,
+            "duration_seconds": stats.duration_seconds,
             "errors": [],
         }
     
     except Exception as e:
-        activity.logger.error(f"Indexing failed: {e}")
+        activity.logger.error(f"[BATCH ERROR] Indexing failed: {e}")
         import traceback
         traceback.print_exc()
         return {
             "status": "error",
             "platform": platform,
             "indexed": 0,
+            "batches": 0,
             "errors": [str(e)],
         }
 
