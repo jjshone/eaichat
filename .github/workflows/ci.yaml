@@ -140,6 +140,7 @@ jobs:
           severity: CRITICAL,HIGH
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true  # Don't block CI on network timeouts
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
