@@ -11,46 +11,48 @@ import asyncio
 
 
 @activity.defn
-async def fetch_and_index_from_platform(platform: str, batch_size: int = 50) -> dict:
+async def fetch_and_index_from_platform(params: dict) -> dict:
     """
     Fetch products from platform connector and index to vector DB.
     
     Args:
-        platform: Platform name (fakestore, magento, odoo)
-        batch_size: Batch size for indexing
+        params: Dict with 'platform' and 'batch_size'
         
     Returns:
         dict with status, indexed count, errors
     """
-    activity.logger.info(f"Fetching and indexing from {platform}")
+    platform = params.get("platform", "fakestore")
+    batch_size = params.get("batch_size", 50)
+    
+    activity.logger.info(f"Fetching and indexing from {platform}, batch_size={batch_size}")
     
     try:
         from app.services.indexing_service import get_indexing_service
         
         service = get_indexing_service()
         
-        total_indexed = 0
-        errors = []
+        # Send heartbeat periodically
+        activity.heartbeat(f"Starting sync from {platform}")
         
-        def progress_callback(current: int, total: int):
-            activity.logger.info(f"Progress: {current}/{total}")
-            activity.heartbeat(f"{current}/{total}")
-        
-        total_indexed = await service.index_from_platform(
+        # Index from platform (note: IndexingService doesn't have progress_callback)
+        stats = await service.index_from_platform(
             platform=platform,
             batch_size=batch_size,
-            progress_callback=progress_callback,
         )
+        
+        activity.logger.info(f"Indexed {stats.total_indexed} products from {platform}")
         
         return {
             "status": "success",
             "platform": platform,
-            "indexed": total_indexed,
-            "errors": errors,
+            "indexed": stats.total_indexed,
+            "errors": [],
         }
     
     except Exception as e:
         activity.logger.error(f"Indexing failed: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "status": "error",
             "platform": platform,
@@ -113,15 +115,19 @@ async def send_langfuse_trace(trace_data: dict) -> bool:
     """Send trace to Langfuse for observability."""
     try:
         import os
-        from langfuse import Langfuse
         
         # Check if Langfuse is configured
-        if not os.getenv("LANGFUSE_PUBLIC_KEY"):
+        if not os.getenv("LANGFUSE_PUBLIC_KEY") and not os.getenv("LANGFUSE_SECRET_KEY"):
             activity.logger.debug("Langfuse not configured, skipping trace")
             return False
         
+        from langfuse import Langfuse
+        
         langfuse = Langfuse()
-        langfuse.trace(
+        
+        # langfuse-3.x uses generation/span API, not trace()
+        # Create a simple event for now
+        langfuse.generation(
             name=trace_data.get("name", "temporal_activity"),
             metadata=trace_data.get("metadata", {}),
             tags=trace_data.get("tags", []),
