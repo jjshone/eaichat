@@ -6,7 +6,7 @@ Workflows for:
 - Product sync from platform connectors
 - Scheduled batch indexing
 - Platform-specific reindexing
-""
+"""
 
 from datetime import timedelta
 from temporalio import workflow
